@@ -69,6 +69,52 @@ u32 next_codepoint(const u8 *c) {
         }
     }
 
+    // check for range 3:
+    // bytes: 1110wwww 10xxxxyy 10yyzzzz
+    if (starts_with_1110(*c)) {
+        u32 b0 = *c++;
+        if (starts_with_10(*c)) {
+            u32 b1 = *c++;
+            if (starts_with_10(*c)) {
+                u32 b2 = *c++;
+                printf("%02X %02X %02X\n", b0, b1, b2);
+                return (b2 & MASK_2) + 
+                        ((b1 & MASK_2) << 6) +
+                        ((b0 & MASK_4) << 12);
+            } else {
+                c--;
+            }
+        } else {
+            c--;
+        }
+    }
+
+    // check for range 4:
+    // bytes: 11110uvv 10vvwwww 10xxxxyy 10yyzzzz
+    if (starts_with_11110(*c)) {
+        u32 b0 = *c++;
+        if (starts_with_10(*c)) {
+            u32 b1 = *c++;
+            if (starts_with_10(*c)) {
+                u32 b2 = *c++;
+                if (starts_with_10(*c)) {
+                    u32 b3 = *c++;
+                    printf("%02X %02X %02X %02X\n", b0, b1, b2, b3);
+                    return (b3 & MASK_2) + 
+                            ((b2 & MASK_2) << 6) +
+                            ((b1 & MASK_2) << 12) +
+                            ((b0 & MASK_5) << 18);
+                } else {
+                    c--;
+                }
+            } else {
+                c--;
+            }
+        } else {
+            c--;
+        }
+    }
+ 
     return 0;
 }
 
@@ -80,5 +126,5 @@ int main(int argc, char **argv) {
 
     printf("input was `%s`\n", input);
 
-    printf("0x%04X\n", next_codepoint(input));
+    printf("U+%04X\n", next_codepoint(input));
 }
