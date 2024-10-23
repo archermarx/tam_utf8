@@ -256,10 +256,16 @@ int run_tests() {
     // check some four-byte sequences
     u8 four_bytes[] = {
         0xF0, 0x90, 0xBA, 0x80, // 𐺀
+        0xF0, 0x91, 0x85, 0x83, // 𑅃
+        0xF0, 0x92, 0x84, 0xA1, // 𒄡
+        0xF0, 0x92, 0x95, 0x83, // 𒕃
         0x0
     };
     b.c = four_bytes;
     ASSERT_CODEPOINT(b,0x10E80);
+    ASSERT_CODEPOINT(b,0x11143);
+    ASSERT_CODEPOINT(b,0x12121);
+    ASSERT_CODEPOINT(b,0x12543);
     ASSERT_CODEPOINT(b,0x0);
 
     return num_failed;
