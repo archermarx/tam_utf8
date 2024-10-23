@@ -151,6 +151,8 @@ u32 next_codepoint(Bytes *bytes) {
     }
 
     return REPLACEMENT_CHAR;
+#undef NEXT_BYTE
+#undef REWIND
 }
 
 // these bytes should never appear in any conforming UTF-8 seq.
