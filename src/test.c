@@ -317,6 +317,90 @@ int test_decode() {
         ASSERT_CODEPOINTS(b1, codepoints, "6-byte sequence missing continuation (1)");
         ASSERT_CODEPOINTS(b2, codepoints, "6-byte sequence missing continuation (2)");
     }
+    // 3.4: concatenation of incomplete sequences
+    // all incomplete 2,3,and 4-byte sequences concatenated
+    // should see six INVALIDs
+    {
+        u8 bytes[] = {
+            0xc0, 
+            0xe0, 0x80,
+            0xf0, 0x80, 0x80,
+            0xdf,
+            0xef, 0xbf,
+            0xf7, 0xbf, 0xbf,
+            0x00
+        };
+        u32 codepoints[] = {INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "concatenation of incomplete sequences");
+    }
+    // 3.5: impossible bytes
+    // these bytes should never appear in a valid utf-8 string
+    {
+        u8 bytes[] = {0xfe, 0xff, 0xfe, 0xfe, 0xff, 0xff};
+        ASSERT_ALL_INVALID(bytes, "impossible bytes");
+    }
+    // 4 - Overlong sequences
+    // 4.1 - Overlong ASCII characters
+    // 4.1.1 - two bytes
+    {
+        u8 bytes[] = {0xc0, 0xaf, 0x0};
+        u32 codepoints[] = {INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "overlong ascii, two bytes");
+    }
+    // 4.1.2 - three bytes
+    {
+        u8 bytes[] = {0xe0, 0x80, 0xaf, 0x0};
+        u32 codepoints[] = {INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "overlong ascii, three bytes");
+    }
+    // 4.1.3 - four bytes
+    {
+        u8 bytes[] = {0xf0, 0x80, 0x80, 0xaf, 0x0};
+        u32 codepoints[] = {INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "overlong ascii, four bytes");
+    }
+    // 4.2 - maximum overlong sequences
+    // checks boundaries between overlong chars and valid chars
+    // 4.2.1 - two bytes
+    {
+        u8 bytes[] = {0xc1, 0xbf, 0x0};
+        u32 codepoints[] = {INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "maximum overlong, two bytes");
+    }
+    // 4.2.2 - three bytes
+    {
+        u8 bytes[] = {0xe0, 0x9f, 0xbf, 0x0};
+        u32 codepoints[] = {INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "maximum overlong, three bytes");
+    }
+    // 4.2.3 - four bytes
+    {
+        u8 bytes[] = {0xf0, 0x8f, 0xbf, 0xbf, 0x0};
+        u32 codepoints[] = {INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "maximum overlong, four bytes");
+    }
+    // 4.3 - overlong null terminator
+    // 4.3.1 - two bytes
+    {
+        u8 bytes[] = {0xc0, 0x80, 0x0};
+        u32 codepoints[] = {INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "overlong null, two bytes");
+    }
+    // 4.3.1 - three bytes
+    {
+        u8 bytes[] = {0xe0, 0x80, 0x80, 0x0};
+        u32 codepoints[] = {INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "overlong null, three bytes");
+    }
+    // 4.3.1 - four bytes
+    {
+        u8 bytes[] = {0xf0, 0x80, 0x80, 0x80, 0x0};
+        u32 codepoints[] = {INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "overlong null, four bytes");
+    }
+
+
+
 
 
 
