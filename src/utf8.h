@@ -18,6 +18,12 @@ typedef struct {
     int len;
 } Bytes;
 
+typedef struct {
+    u32 *codepoints;
+    int pos;
+    int len;
+} Codepoints;
+
 #define b_fromarr(bytes) b_fromptr(bytes, sizeof(bytes)/sizeof(u8))
 Bytes b_fromptr(u8 *arr, size_t n);
 
