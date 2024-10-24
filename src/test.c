@@ -11,12 +11,11 @@ const u8 invalid_bytes[] = {
 };
 
 int check_codepoint(Bytes *bytes, u32 expected, char *msg) {
-    u8 *start = bytes->c;
     u32 c = next_codepoint(bytes);
     if (c != expected) {
         printf("Failure: byte sequence");
-        for (u8 *c = start; c != bytes->c; c++) {
-            printf(" 0x%X", *c);
+        for (int i = 0; i < bytes->pos; i++) {
+            printf(" 0x%X", bytes->bytes[i]);
         }
         printf(" should decode to U+%X. Got U+%X instead\n", expected, c);
         if (msg)
@@ -35,18 +34,19 @@ int check_codepoint(Bytes *bytes, u32 expected, char *msg) {
 
 #define ASSERT_INVALID(seq) ASSERT_CODEPOINT(seq, INVALID)
 
-#define ASSERT_CODEPOINTS(bytes, codepoints, msg) do {      \
-        Bytes b = {.c = bytes};                             \
-        for (size_t i = 0; i < LENGTH(codepoints); i++) {   \
-            ASSERT_CODEPOINT_MSG(b, codepoints[i], msg);    \
-        }                                                   \
-    } while (0)
+#define ASSERT_CODEPOINTS(bytes, codepoints, msg) do {  \
+    Bytes b = b_fromarr(bytes);                        \
+    for (size_t i = 0; i < LENGTH(codepoints); i++) {   \
+        ASSERT_CODEPOINT_MSG(b, codepoints[i], msg);    \
+    }                                                   \
+} while (0)
 
-#define ASSERT_ALL_INVALID(bytes, msg) do {             \
-    Bytes b = {.c = bytes};                             \
-    for (size_t i = 0; i < LENGTH(bytes); i++) {        \
-        ASSERT_CODEPOINT_MSG(b, INVALID, msg);          \
-    }} while (0)
+#define ASSERT_ALL_INVALID(bytes, msg) do {        \
+    Bytes b = b_fromarr(bytes);                   \
+    for (size_t i = 0; i < LENGTH(bytes); i++) {   \
+        ASSERT_CODEPOINT_MSG(b, INVALID, msg);     \
+    }                                              \
+} while (0)
 
 int test_basic() {
     // check that invalid bytes are always rejected
@@ -54,26 +54,25 @@ int test_basic() {
     int num_invalid_bytes = sizeof(invalid_bytes) / sizeof(u8);
     u8 single_bytes[] = {0x00};
     u8 double_bytes[] = {0xC2, 0x00};
-    Bytes b;
 
     for (int i = 0; i < num_invalid_bytes; i++) {
         single_bytes[0] = invalid_bytes[i];
-        b.c = single_bytes;
-        ASSERT_INVALID(b);
+        Bytes b_singlebytes = b_fromarr(single_bytes);
+        ASSERT_INVALID(b_singlebytes);
        
         double_bytes[1] = invalid_bytes[i];
-        b.c = double_bytes;
-        ASSERT_INVALID(b);
+        Bytes b_doublebytes = b_fromarr(double_bytes);
+        ASSERT_INVALID(b_doublebytes);
     }
 
     u8 fur[] = {'f', 0xFC, 'r'};
-    Bytes fur_bytes = {.c = fur};
+    Bytes fur_bytes = b_fromarr(fur);
     ASSERT_CODEPOINT(fur_bytes, 'f');
     ASSERT_INVALID(fur_bytes);
     ASSERT_CODEPOINT(fur_bytes, 'r');
 
     u8 ascii[] = {'a', 's', 'c', 'i', 'i', 0x00, 0xC0};
-    Bytes ascii_bytes = {.c = ascii};
+    Bytes ascii_bytes = b_fromarr(ascii);
     ASSERT_CODEPOINT(ascii_bytes, 'a');
     ASSERT_CODEPOINT(ascii_bytes, 's');
     ASSERT_CODEPOINT(ascii_bytes, 'c');
@@ -83,16 +82,16 @@ int test_basic() {
     ASSERT_INVALID(ascii_bytes);
 
     // check that encoded codepoints are minimal
-    u8 overlong_1[] = {0xC0, 0x80};
-    u8 overlong_2[] = {0xE0, 0x80, 0x80};
-    u8 overlong_3[] = {0xF0, 0x80, 0x80, 0x80};
+    u8 overlong1[] = {0xC0, 0x80};
+    u8 overlong2[] = {0xE0, 0x80, 0x80};
+    u8 overlong3[] = {0xF0, 0x80, 0x80, 0x80};
     
-    b.c = overlong_1;
-    ASSERT_INVALID(b);
-    b.c = overlong_2;
-    ASSERT_INVALID(b);
-    b.c = overlong_3;
-    ASSERT_INVALID(b);
+    Bytes b_overlong1 = b_fromarr(overlong1);
+    Bytes b_overlong2 = b_fromarr(overlong2);
+    Bytes b_overlong3 = b_fromarr(overlong3);
+    ASSERT_INVALID(b_overlong1);
+    ASSERT_INVALID(b_overlong2);
+    ASSERT_INVALID(b_overlong3);
 
     // check some two-byte sequences
     u8 two_bytes[] = {
@@ -101,11 +100,11 @@ int test_basic() {
         0xCA, 0x81,
         0x00
     };
-    b.c = two_bytes;
-    ASSERT_CODEPOINT(b, 0xA9);
-    ASSERT_CODEPOINT(b, 0xAA);
-    ASSERT_CODEPOINT(b, 0x281);
-    ASSERT_CODEPOINT(b, 0x0);
+    Bytes twobyte = b_fromarr(two_bytes);
+    ASSERT_CODEPOINT(twobyte, 0xA9);
+    ASSERT_CODEPOINT(twobyte, 0xAA);
+    ASSERT_CODEPOINT(twobyte, 0x281);
+    ASSERT_CODEPOINT(twobyte, 0x0);
 
     // check some three-byte sequences
     u8 three_bytes[] = {
@@ -116,13 +115,13 @@ int test_basic() {
         0xE3,0x8A,0x92, // ㊒
         0x0
     };
-    b.c = three_bytes;
-    ASSERT_CODEPOINT(b, 0x926);
-    ASSERT_CODEPOINT(b, 0x95B);
-    ASSERT_CODEPOINT(b, 0x11F6);
-    ASSERT_CODEPOINT(b, 0x2031);
-    ASSERT_CODEPOINT(b, 0x3292);
-    ASSERT_CODEPOINT(b, 0x0);
+    Bytes threebyte = b_fromarr(three_bytes);
+    ASSERT_CODEPOINT(threebyte, 0x926);
+    ASSERT_CODEPOINT(threebyte, 0x95B);
+    ASSERT_CODEPOINT(threebyte, 0x11F6);
+    ASSERT_CODEPOINT(threebyte, 0x2031);
+    ASSERT_CODEPOINT(threebyte, 0x3292);
+    ASSERT_CODEPOINT(threebyte, 0x0);
 
     // check some four-byte sequences
     u8 four_bytes[] = {
@@ -132,12 +131,12 @@ int test_basic() {
         0xF0, 0x92, 0x95, 0x83, // 𒕃
         0x0
     };
-    b.c = four_bytes;
-    ASSERT_CODEPOINT(b,0x10E80);
-    ASSERT_CODEPOINT(b,0x11143);
-    ASSERT_CODEPOINT(b,0x12121);
-    ASSERT_CODEPOINT(b,0x12543);
-    ASSERT_CODEPOINT(b,0x0);
+    Bytes fourbyte = b_fromarr(four_bytes);
+    ASSERT_CODEPOINT(fourbyte,0x10E80);
+    ASSERT_CODEPOINT(fourbyte,0x11143);
+    ASSERT_CODEPOINT(fourbyte,0x12121);
+    ASSERT_CODEPOINT(fourbyte,0x12543);
+    ASSERT_CODEPOINT(fourbyte,0x0);
 
     return num_failed;
 }
@@ -150,25 +149,25 @@ int test_decode() {
     // 
     // 1. κόσμε (valid utf-8) 
     {
-        u8 bytes[] = {0xce, 0xba, 0xcf, 0x8c, 0xcf, 0x83, 0xce, 0xbc, 0xce, 0xb5, 0x0};
+        u8 bytes[] = {0xce, 0xba, 0xcf, 0x8c, 0xcf, 0x83, 0xce, 0xbc, 0xce, 0xb5};
         u32 codepoints[] = {0x3BA, 0x3CC, 0x3C3, 0x3BC, 0x3B5, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "κόσμε");
     }
     // 2.1. first 1,2,3,4-byte sequences
     {
-        u8 bytes[] = {0x0, 0xc2, 0x80, 0xe0, 0xa0, 0x80, 0xf0, 0x90, 0x80, 0x80, 0x0};
+        u8 bytes[] = {0x0, 0xc2, 0x80, 0xe0, 0xa0, 0x80, 0xf0, 0x90, 0x80, 0x80};
         u32 codepoints[] = {0x0, 0x80, 0x800, 0x10000, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "first 1,2,3,4-byte sequences");
     }
     // 2.2. last 1,2,3,4-byte sequences 
     {
-        u8 bytes[] = {0x7f, 0xdf, 0xbf, 0xef, 0xbf, 0xbf, 0xf4, 0x8f, 0xbf, 0xbf, 0x0};
+        u8 bytes[] = {0x7f, 0xdf, 0xbf, 0xef, 0xbf, 0xbf, 0xf4, 0x8f, 0xbf, 0xbf};
         u32 codepoints[] = {0x7F, 0x7FF, 0xFFFF, 0x10FFFF, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "last 1,2,3,4-byte sequences");
     }
     // 2.3. other boundary conditions
     {
-        u8 bytes[] = {0xed, 0x9f, 0xbf, 0xee, 0x80, 0x80, 0x0};
+        u8 bytes[] = {0xed, 0x9f, 0xbf, 0xee, 0x80, 0x80};
         u32 codepoints[] = {0xD7FF, 0xE000, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "other boundary conditions");
     }
@@ -176,13 +175,13 @@ int test_decode() {
     // 3.1: unexpected continuation bytes
     // 3.1.1-3.1.3: first and last continuation bytes and two continuation bytes
     {
-        u8 bytes[] = {0x80, 0xbf, 0x0};
+        u8 bytes[] = {0x80, 0xbf};
         u32 codepoints[] = {INVALID, INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "first and last continuations");
     }
     // 3.1.3: 3 continuation bytes
     {
-        u8 bytes[] = {0x80, 0xbf, 0x80, 0x0};
+        u8 bytes[] = {0x80, 0xbf, 0x80};
         u32 codepoints[] = {INVALID, INVALID, INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "3 continuation bytes");
     }
@@ -273,8 +272,8 @@ int test_decode() {
     // 3.3.1: 2-byte sequence with last byte missing (first)
     // 3.3.6: 2-byte sequence with last byte missing (last)
     {
-        u8 b1[] = {0xc0, 0x00};
-        u8 b2[] = {0xdf, 0x00};
+        u8 b1[] = {0xc0};
+        u8 b2[] = {0xdf};
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(b1, codepoints, "2-byte sequence missing continuation (1)");
         ASSERT_CODEPOINTS(b2, codepoints, "2-byte sequence missing continuation (2)");
@@ -282,8 +281,8 @@ int test_decode() {
     // 3.3.2: 3-byte sequence with last byte missing (first)
     // 3.3.7: 3-byte sequence with last byte missing (lat)
     {
-        u8 b1[] = {0xe0, 0x80, 0x00};
-        u8 b2[] = {0xef, 0xbf, 0x00};
+        u8 b1[] = {0xe0, 0x80};
+        u8 b2[] = {0xef, 0xbf};
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(b1, codepoints, "3-byte sequence missing continuation (1)");
         ASSERT_CODEPOINTS(b2, codepoints, "3-byte sequence missing continuation (2)");
@@ -291,8 +290,8 @@ int test_decode() {
     // 3.3.3: 4-byte sequence with last byte missing (first)
     // 3.3.8: 4-byte sequence with last byte missing (last)
     {
-        u8 b1[] = {0xf0, 0x80, 0x80, 0x00};
-        u8 b2[] = {0xf7, 0xbf, 0xbf, 0x00};
+        u8 b1[] = {0xf0, 0x80, 0x80};
+        u8 b2[] = {0xf7, 0xbf, 0xbf};
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(b1, codepoints, "4-byte sequence missing continuation (1)");
         ASSERT_CODEPOINTS(b2, codepoints, "4-byte sequence missing continuation (2)");
@@ -301,8 +300,8 @@ int test_decode() {
     // 3.3.9: 5-byte sequence with last byte missing (last)
     // NOTE: five-byte sequences are not supported, so these should emit individual INVALID bytes
     {
-        u8 b1[] = {0xf8, 0x80, 0x80, 0x80, 0x00};
-        u8 b2[] = {0xfb, 0xbf, 0xbf, 0xbf, 0x00};
+        u8 b1[] = {0xf8, 0x80, 0x80, 0x80};
+        u8 b2[] = {0xfb, 0xbf, 0xbf, 0xbf};
         u32 codepoints[] = {INVALID, INVALID, INVALID, INVALID, 0x0};
         ASSERT_CODEPOINTS(b1, codepoints, "5-byte sequence missing continuation (1)");
         ASSERT_CODEPOINTS(b2, codepoints, "5-byte sequence missing continuation (2)");
@@ -311,8 +310,8 @@ int test_decode() {
     // 3.3.9: 6-byte sequence with last byte missing (last)
     // NOTE: five-byte sequences are not supported, so these should emit individual INVALID bytes
     {
-        u8 b1[] = {0xfc, 0x80, 0x80, 0x80, 0x80, 0x00};
-        u8 b2[] = {0xfd, 0xbf, 0xbf, 0xbf, 0xbf, 0x00};
+        u8 b1[] = {0xfc, 0x80, 0x80, 0x80, 0x80};
+        u8 b2[] = {0xfd, 0xbf, 0xbf, 0xbf, 0xbf};
         u32 codepoints[] = {INVALID, INVALID, INVALID, INVALID, INVALID, 0x0};
         ASSERT_CODEPOINTS(b1, codepoints, "6-byte sequence missing continuation (1)");
         ASSERT_CODEPOINTS(b2, codepoints, "6-byte sequence missing continuation (2)");
@@ -343,19 +342,19 @@ int test_decode() {
     // 4.1 - Overlong ASCII characters
     // 4.1.1 - two bytes
     {
-        u8 bytes[] = {0xc0, 0xaf, 0x0};
+        u8 bytes[] = {0xc0, 0xaf};
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "overlong ascii, two bytes");
     }
     // 4.1.2 - three bytes
     {
-        u8 bytes[] = {0xe0, 0x80, 0xaf, 0x0};
+        u8 bytes[] = {0xe0, 0x80, 0xaf};
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "overlong ascii, three bytes");
     }
     // 4.1.3 - four bytes
     {
-        u8 bytes[] = {0xf0, 0x80, 0x80, 0xaf, 0x0};
+        u8 bytes[] = {0xf0, 0x80, 0x80, 0xaf};
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "overlong ascii, four bytes");
     }
@@ -363,38 +362,38 @@ int test_decode() {
     // checks boundaries between overlong chars and valid chars
     // 4.2.1 - two bytes
     {
-        u8 bytes[] = {0xc1, 0xbf, 0x0};
+        u8 bytes[] = {0xc1, 0xbf};
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "maximum overlong, two bytes");
     }
     // 4.2.2 - three bytes
     {
-        u8 bytes[] = {0xe0, 0x9f, 0xbf, 0x0};
+        u8 bytes[] = {0xe0, 0x9f, 0xbf};
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "maximum overlong, three bytes");
     }
     // 4.2.3 - four bytes
     {
-        u8 bytes[] = {0xf0, 0x8f, 0xbf, 0xbf, 0x0};
+        u8 bytes[] = {0xf0, 0x8f, 0xbf, 0xbf};
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "maximum overlong, four bytes");
     }
     // 4.3 - overlong null terminators
     // 4.3.1 - two bytes
     {
-        u8 bytes[] = {0xc0, 0x80, 0x0};
+        u8 bytes[] = {0xc0, 0x80};
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "overlong null, two bytes");
     }
     // 4.3.1 - three bytes
     {
-        u8 bytes[] = {0xe0, 0x80, 0x80, 0x0};
+        u8 bytes[] = {0xe0, 0x80, 0x80};
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "overlong null, three bytes");
     }
     // 4.3.1 - four bytes
     {
-        u8 bytes[] = {0xf0, 0x80, 0x80, 0x80, 0x0};
+        u8 bytes[] = {0xf0, 0x80, 0x80, 0x80};
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "overlong null, four bytes");
     }
@@ -402,92 +401,92 @@ int test_decode() {
     // 5.1 - Single UTF-16 surrogates
     // 5.1.1
     {
-        u8 bytes[] = {0xed, 0xa0, 0x80, 0x0};
+        u8 bytes[] = {0xed, 0xa0, 0x80};
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "5.1.1 - utf16 surrogate");
     }
     // 5.1.2
     {
-        u8 bytes[] = {0xed, 0xad, 0xbf, 0x0};
+        u8 bytes[] = {0xed, 0xad, 0xbf};
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "5.1.2 - utf16 surrogate");
     }
     // 5.1.3
     {
-        u8 bytes[] = {0xed, 0xae, 0x90, 0x0};
+        u8 bytes[] = {0xed, 0xae, 0x90};
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "5.1.3 - utf16 surrogate");
     }
     // 5.1.4
     {
-        u8 bytes[] = {0xed, 0xaf, 0xbf, 0x0};
+        u8 bytes[] = {0xed, 0xaf, 0xbf};
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "5.1.4 - utf16 surrogate");
     }
     // 5.1.5
     {
-        u8 bytes[] = {0xed, 0xb0, 0x80, 0x0};
+        u8 bytes[] = {0xed, 0xb0, 0x80};
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "5.1.5 - utf16 surrogate");
     }
     // 5.1.6
     {
-        u8 bytes[] = {0xed, 0xbe, 0x80, 0x0};
+        u8 bytes[] = {0xed, 0xbe, 0x80};
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "5.1.6 - utf16 surrogate");
     }
     // 5.1.7
     {
-        u8 bytes[] = {0xed, 0xbf, 0xbf, 0x0};
+        u8 bytes[] = {0xed, 0xbf, 0xbf};
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "5.1.7 - utf16 surrogate");
     }
     // 5.2 - Paired UTF-16 surrogates
     // 5.2.1
     {
-        u8 bytes[] = {0xed, 0xa0, 0x80, 0xed, 0xb0, 0x80, 0x0};
+        u8 bytes[] = {0xed, 0xa0, 0x80, 0xed, 0xb0, 0x80};
         u32 codepoints[] = {INVALID, INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "5.2.1 - paired utf16 surrogates");
     }
     // 5.2.2
     {
-        u8 bytes[] = {0xed, 0xa0, 0x80, 0xed, 0xbf, 0xbf, 0x0};
+        u8 bytes[] = {0xed, 0xa0, 0x80, 0xed, 0xbf, 0xbf};
         u32 codepoints[] = {INVALID, INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "5.2.2 - paired utf16 surrogates");
     }
     // 5.2.3
     {
-        u8 bytes[] = {0xed, 0xad, 0xbf, 0xed, 0xb0, 0x80, 0x0};
+        u8 bytes[] = {0xed, 0xad, 0xbf, 0xed, 0xb0, 0x80};
         u32 codepoints[] = {INVALID, INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "5.2.3 - paired utf16 surrogates");
     }
     // 5.2.4
     {
-        u8 bytes[] = {0xed, 0xad, 0xbf, 0xed, 0xbf, 0xbf, 0x0};
+        u8 bytes[] = {0xed, 0xad, 0xbf, 0xed, 0xbf, 0xbf};
         u32 codepoints[] = {INVALID, INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "5.2.4 - paired utf16 surrogates");
     }
     // 5.2.5
     {
-        u8 bytes[] = {0xed, 0xae, 0x80, 0xed, 0xb0, 0x80, 0x0};
+        u8 bytes[] = {0xed, 0xae, 0x80, 0xed, 0xb0, 0x80};
         u32 codepoints[] = {INVALID, INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "5.2.5 - paired utf16 surrogates");
     }
     // 5.2.6
     {
-        u8 bytes[] = {0xed, 0xae, 0x80, 0xed, 0xbf, 0xbf, 0x0};
+        u8 bytes[] = {0xed, 0xae, 0x80, 0xed, 0xbf, 0xbf};
         u32 codepoints[] = {INVALID, INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "5.2.6 - paired utf16 surrogates");
     }
     // 5.2.7
     {
-        u8 bytes[] = {0xed, 0xaf, 0xbf, 0xed, 0xb0, 0x80, 0x0};
+        u8 bytes[] = {0xed, 0xaf, 0xbf, 0xed, 0xb0, 0x80};
         u32 codepoints[] = {INVALID, INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "5.2.7 - paired utf16 surrogates");
     }
     // 5.2.8
     {
-        u8 bytes[] = {0xed, 0xaf, 0xbf, 0xed, 0xbf, 0xbf, 0x0};
+        u8 bytes[] = {0xed, 0xaf, 0xbf, 0xed, 0xbf, 0xbf};
         u32 codepoints[] = {INVALID, INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "5.2.8 - paired utf16 surrogates");
     }
