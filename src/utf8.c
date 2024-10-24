@@ -38,6 +38,10 @@ bool is_continuation(const u8 c) {
     return c >= 0x80 && c <= 0xBF;
 }
 
+bool is_utf16_surrogate(const u32 c) {
+    return c >= 0xD800 && c <= 0xDFFF;
+}
+
 u32 next_codepoint(Bytes *bytes) {
 #define NEXT_BYTE() (*(bytes->c)++)
 #define REWIND(n) (bytes->c -= n)
@@ -76,7 +80,7 @@ u32 next_codepoint(Bytes *bytes) {
                 u32 codepoint = (b2 & MASK_2) + 
                                 ((b1 & MASK_2) << 6) +
                                 ((b0 & MASK_4) << 12);
-                if (in_range_3(codepoint)) {
+                if (in_range_3(codepoint) && !is_utf16_surrogate(codepoint)) {
                     return codepoint;
                 } else {
                     return INVALID;

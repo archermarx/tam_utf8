@@ -150,25 +150,25 @@ int test_decode() {
     // 
     // 1. κόσμε (valid utf-8) 
     {
-        u8 bytes[] = {0xce, 0xba, 0xcf, 0x8c, 0xcf, 0x83, 0xce, 0xbc, 0xce, 0xb5};
-        u32 codepoints[] = {0x3BA, 0x3CC, 0x3C3, 0x3BC, 0x3B5};
+        u8 bytes[] = {0xce, 0xba, 0xcf, 0x8c, 0xcf, 0x83, 0xce, 0xbc, 0xce, 0xb5, 0x0};
+        u32 codepoints[] = {0x3BA, 0x3CC, 0x3C3, 0x3BC, 0x3B5, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "κόσμε");
     }
     // 2.1. first 1,2,3,4-byte sequences
     {
-        u8 bytes[] = {0x0, 0xc2, 0x80, 0xe0, 0xa0, 0x80, 0xf0, 0x90, 0x80, 0x80};
-        u32 codepoints[] = {0x0, 0x80, 0x800, 0x10000};
+        u8 bytes[] = {0x0, 0xc2, 0x80, 0xe0, 0xa0, 0x80, 0xf0, 0x90, 0x80, 0x80, 0x0};
+        u32 codepoints[] = {0x0, 0x80, 0x800, 0x10000, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "first 1,2,3,4-byte sequences");
     }
     // 2.2. last 1,2,3,4-byte sequences 
     {
-        u8 bytes[] = {0x7f, 0xdf, 0xbf, 0xef, 0xbf, 0xbf, 0xf4, 0x8f, 0xbf, 0xbf};
-        u32 codepoints[] = {0x7F, 0x7FF, 0xFFFF, 0x10FFFF};
+        u8 bytes[] = {0x7f, 0xdf, 0xbf, 0xef, 0xbf, 0xbf, 0xf4, 0x8f, 0xbf, 0xbf, 0x0};
+        u32 codepoints[] = {0x7F, 0x7FF, 0xFFFF, 0x10FFFF, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "last 1,2,3,4-byte sequences");
     }
     // 2.3. other boundary conditions
     {
-        u8 bytes[] = {0xed, 0x9f, 0xbf, 0xee, 0x80, 0x80};
+        u8 bytes[] = {0xed, 0x9f, 0xbf, 0xee, 0x80, 0x80, 0x0};
         u32 codepoints[] = {0xD7FF, 0xE000, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "other boundary conditions");
     }
@@ -176,14 +176,14 @@ int test_decode() {
     // 3.1: unexpected continuation bytes
     // 3.1.1-3.1.3: first and last continuation bytes and two continuation bytes
     {
-        u8 bytes[] = {0x80, 0xbf};
-        u32 codepoints[] = {INVALID, INVALID};
+        u8 bytes[] = {0x80, 0xbf, 0x0};
+        u32 codepoints[] = {INVALID, INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "first and last continuations");
     }
     // 3.1.3: 3 continuation bytes
     {
-        u8 bytes[] = {0x80, 0xbf, 0x80};
-        u32 codepoints[] = {INVALID, INVALID, INVALID};
+        u8 bytes[] = {0x80, 0xbf, 0x80, 0x0};
+        u32 codepoints[] = {INVALID, INVALID, INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "3 continuation bytes");
     }
     // 3.1.4: 4 continuation bytes
@@ -379,7 +379,7 @@ int test_decode() {
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "maximum overlong, four bytes");
     }
-    // 4.3 - overlong null terminator
+    // 4.3 - overlong null terminators
     // 4.3.1 - two bytes
     {
         u8 bytes[] = {0xc0, 0x80, 0x0};
@@ -398,11 +398,99 @@ int test_decode() {
         u32 codepoints[] = {INVALID, 0x0};
         ASSERT_CODEPOINTS(bytes, codepoints, "overlong null, four bytes");
     }
-
-
-
-
-
+    // 5 - UTF-16 surrogates
+    // 5.1 - Single UTF-16 surrogates
+    // 5.1.1
+    {
+        u8 bytes[] = {0xed, 0xa0, 0x80, 0x0};
+        u32 codepoints[] = {INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "5.1.1 - utf16 surrogate");
+    }
+    // 5.1.2
+    {
+        u8 bytes[] = {0xed, 0xad, 0xbf, 0x0};
+        u32 codepoints[] = {INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "5.1.2 - utf16 surrogate");
+    }
+    // 5.1.3
+    {
+        u8 bytes[] = {0xed, 0xae, 0x90, 0x0};
+        u32 codepoints[] = {INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "5.1.3 - utf16 surrogate");
+    }
+    // 5.1.4
+    {
+        u8 bytes[] = {0xed, 0xaf, 0xbf, 0x0};
+        u32 codepoints[] = {INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "5.1.4 - utf16 surrogate");
+    }
+    // 5.1.5
+    {
+        u8 bytes[] = {0xed, 0xb0, 0x80, 0x0};
+        u32 codepoints[] = {INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "5.1.5 - utf16 surrogate");
+    }
+    // 5.1.6
+    {
+        u8 bytes[] = {0xed, 0xbe, 0x80, 0x0};
+        u32 codepoints[] = {INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "5.1.6 - utf16 surrogate");
+    }
+    // 5.1.7
+    {
+        u8 bytes[] = {0xed, 0xbf, 0xbf, 0x0};
+        u32 codepoints[] = {INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "5.1.7 - utf16 surrogate");
+    }
+    // 5.2 - Paired UTF-16 surrogates
+    // 5.2.1
+    {
+        u8 bytes[] = {0xed, 0xa0, 0x80, 0xed, 0xb0, 0x80, 0x0};
+        u32 codepoints[] = {INVALID, INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "5.2.1 - paired utf16 surrogates");
+    }
+    // 5.2.2
+    {
+        u8 bytes[] = {0xed, 0xa0, 0x80, 0xed, 0xbf, 0xbf, 0x0};
+        u32 codepoints[] = {INVALID, INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "5.2.2 - paired utf16 surrogates");
+    }
+    // 5.2.3
+    {
+        u8 bytes[] = {0xed, 0xad, 0xbf, 0xed, 0xb0, 0x80, 0x0};
+        u32 codepoints[] = {INVALID, INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "5.2.3 - paired utf16 surrogates");
+    }
+    // 5.2.4
+    {
+        u8 bytes[] = {0xed, 0xad, 0xbf, 0xed, 0xbf, 0xbf, 0x0};
+        u32 codepoints[] = {INVALID, INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "5.2.4 - paired utf16 surrogates");
+    }
+    // 5.2.5
+    {
+        u8 bytes[] = {0xed, 0xae, 0x80, 0xed, 0xb0, 0x80, 0x0};
+        u32 codepoints[] = {INVALID, INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "5.2.5 - paired utf16 surrogates");
+    }
+    // 5.2.6
+    {
+        u8 bytes[] = {0xed, 0xae, 0x80, 0xed, 0xbf, 0xbf, 0x0};
+        u32 codepoints[] = {INVALID, INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "5.2.6 - paired utf16 surrogates");
+    }
+    // 5.2.7
+    {
+        u8 bytes[] = {0xed, 0xaf, 0xbf, 0xed, 0xb0, 0x80, 0x0};
+        u32 codepoints[] = {INVALID, INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "5.2.7 - paired utf16 surrogates");
+    }
+    // 5.2.8
+    {
+        u8 bytes[] = {0xed, 0xaf, 0xbf, 0xed, 0xbf, 0xbf, 0x0};
+        u32 codepoints[] = {INVALID, INVALID, 0x0};
+        ASSERT_CODEPOINTS(bytes, codepoints, "5.2.8 - paired utf16 surrogates");
+    }
 
     return num_failed;
 }
