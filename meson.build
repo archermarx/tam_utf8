@@ -8,7 +8,6 @@ add_project_arguments(
 
 sources = [
   'src/main.c',
-  'src/utf8.c'
 ]
 
 executable('unicode',

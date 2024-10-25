@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+#define TAM_UTF8_IMPLEMENTATION
 #include "utf8.h"
 #include "test.c"
 
